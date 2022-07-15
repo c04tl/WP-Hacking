@@ -1,29 +1,27 @@
 #!/bin/bash
 
 if [[ -z $@ ]]; then
-	echo -e "\n\tUso: $0 <host> <diccionario>"
-	exit 1
+    echo "Modo de uso: $0 HOST"
+    exit 1
 fi
 
-function ctrl_c(){
-	echo -e "\n[!] Saliendo. . .\n"
-	exit 1
-
-}
-
-trap ctrl_c INT
-
 host="$1"
-usuario="None"
+usuario="A"
 i=0
+while [[ -n $usuario ]]; do
+    usuario=$(curl -s $host/wp-json/wp/v2/users | jq ".[$i][\"slug\"]" | tr -d '"')
+    if [[ $usuario == "null" ]]; then
+        exit 0  
 
-while [ ! -z $usuario ]
-do
-    usuario="$(curl -s "$host/wp-json/wp/v2/users/" | jq ".[$i][\"slug\"]" | tr -d '"')"
-    if [ "$usuario" == "null" ]; then
-        exit
+    elif [[ -z usuario ]]; then
+        if [[ -z usuario=$(curl -s "$host/?rest_route=/wp/v2/users" | jq .[$i][\"slug\"] | tr -d '"') ]]; then
+            echo "[x] No se encontraron usuarios :c"
+            exit 1
+        fi
     fi
-    echo -e "[-] Usuario: $usuario"
-    echo "$usuario" >> usuarios-wp.txt
+
+    echo "[+] Usuario: $usuario"
+    echo $usuario >> usuarios-wp.txt
     i=$i+1
 done
+

